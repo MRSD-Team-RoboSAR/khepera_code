@@ -283,6 +283,71 @@ void getLRF(int LRF_DeviceHandle, long * LRF_Buffer) {
     memcpy(LRF_Buffer, kb_lrf_DistanceData, sizeof(long)*LRF_DATA_NB);
 }
 
+int getImg(){
+    unsigned char* buffer=NULL;
+    unsigned int dWidth=192;
+    unsigned int dHeight=144;
+    int x,y,i,ret;
+    // Initialize camera
+    if ((ret=kb_camera_init(&dWidth, &dHeight))<0){
+        fprintf(stderr,"camera init error %d\r\n",ret);
+        free(buffer);
+        return -1;
+    }else {
+        switch(ret) {
+            case 1:
+                printf("width adjusted to %d\r\n",dWidth);
+                break;
+            case 2:
+                printf("height adjusted to %d\r\n",dHeight);
+                break;
+            case 3:
+                printf("width adjusted to %d and height adjusted to %d !\r\n",dWidth,dHeight);
+                break;
+            default:
+                break;
+        }
+    }
+    // Create buffer in memory
+    buffer=malloc(dWidth*dHeight*3*sizeof(char));
+    if (buffer==NULL){
+        fprintf(stderr,"could alloc image buffer!\r\n");
+        free(buffer);
+        return -2;
+    }
+    // Start video stream
+    if(kb_captureStart()<0){
+        free(buffer);
+        kb_camera_release();
+        fprintf(stderr,"ERROR: capture start error in mutli frames!\r\n");
+        return -3;
+    }
+    // 100ms startup
+    usleep(100000);
+    // Get frame
+    printf("Start of image\n");
+    if ((ret=kb_frameRead(buffer))<0){
+        fprintf(stderr,"ERROR: frame capture error %d!\r\n",ret);
+    } else{
+        for (y=0; y<dHeight;y++){
+            for (x=0; x<dWidth;x++){
+                i=3*(x+y*dWidth);
+                printf("%d, %d, %d, %d\n", i/3, buffer[i],buffer[i+1],buffer[i+2]);
+            }
+        }
+    }
+    // Stop video stream
+    if (kb_captureStop()<0){
+        fprintf(stderr,"ERROR: capture stop error in mutli frames!\r\n");
+    }
+    // releasing camera
+    kb_camera_release();
+    // free image memory
+    free(buffer);
+    printf("End of image (%d x %d)\n", dWidth, dHeight);
+    return 0;
+
+}
 
 
 /*-------------------Establish UDP socket communication as client-------------------*/
@@ -531,6 +596,7 @@ void UDPrecvParseFromServer(int UDP_sockfd, struct sockaddr_in servaddr, double 
 #define FOR_DEV_SPD 850
 
 int main(int argc, char *argv[]) {
+    return getImg();
 	int i;
 	/* Check arguments */
 	if(argc<NUM_PARAMETERS+1)
