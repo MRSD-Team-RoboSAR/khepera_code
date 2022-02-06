@@ -29,6 +29,10 @@ char* server_ip;
 #define KH4_GYRO_DEG_S   (66.0/1000.0)
 #define LRF_DEVICE "/dev/ttyACM0" 
 
+// Camera image dimensions
+unsigned int img_width=192;//752; // max width
+unsigned int img_height=144;//480; // max height
+
 static knet_dev_t * dsPic;
 static int quitReq = 0; // quit variable for loop
 
@@ -324,39 +328,13 @@ int stop_camera(){
     kb_camera_release();
     printf("Shut down camera and stream\n");
 }
-int getImg(){
-    unsigned char* buffer=NULL;
-    unsigned int dWidth=192;//752;
-    unsigned int dHeight=144;//480;
-    int x,y,i,ret;
-    // start camera and stream
-    start_camera(&dWidth, &dHeight);
-    // Create buffer in memory
-    buffer=malloc(dWidth*dHeight*3*sizeof(char));
-    if (buffer==NULL){
-        fprintf(stderr,"could alloc image buffer!\r\n");
-        free(buffer);
-        return -2;
-    }
+void getImg(unsigned char* buffer){
+    int ret;
     // Get frame
-    printf("Start of image\n");
     if ((ret=kb_frameRead(buffer))<0){
         fprintf(stderr,"ERROR: frame capture error %d!\r\n",ret);
-    } else{
-        for (y=0; y<dHeight;y++){
-            for (x=0; x<dWidth;x++){
-                i=3*(x+y*dWidth);
-                // printf("%d, %d, %d, %d\n", i/3, buffer[i],buffer[i+1],buffer[i+2]);
-            }
-        }
     }
-    // Stop camera and stream
-    stop_camera();
-    // free image memory
-    free(buffer);
-    printf("End of image (%d x %d)\n", dWidth, dHeight);
-    return 0;
-
+    return;
 }
 
 
@@ -418,8 +396,8 @@ void UDP_Client(int * sockfd, struct sockaddr_in * servaddr, struct sockaddr_in 
 
 
 /*------------Sending sensor values to UDP server in one big string-------------*/
-void UDPsendSensor(int UDP_sockfd, struct sockaddr_in servaddr, long double T, double acc_X, double acc_Y, double acc_Z, double gyro_X, double gyro_Y, double gyro_Z, unsigned int posL, unsigned int posR, unsigned int spdL, unsigned int spdR, short usValues[], int irValues[], long LRFValues[]) {
-	char text[25000];
+void UDPsendSensor(int UDP_sockfd, struct sockaddr_in servaddr, long double T, double acc_X, double acc_Y, double acc_Z, double gyro_X, double gyro_Y, double gyro_Z, unsigned int posL, unsigned int posR, unsigned int spdL, unsigned int spdR, short usValues[], int irValues[], long LRFValues[], unsigned char imgValues[]) {
+	char text[400000];
 
 	// Separate sensor readings with "tags"
 	// EX: "-----AY2.5AY-------"
@@ -551,6 +529,17 @@ void UDPsendSensor(int UDP_sockfd, struct sockaddr_in servaddr, long double T, d
         sprintf(text + strlen(text), "LRF%3d - %4ldmm\n", i, LRFValues[i]);
     }
 
+    // Camera image
+    // WARNING: VERY SLOW
+    int x,y;
+    sprintf(text + strlen(text), "Img (%d x %d):\n", img_width, img_height);
+    for (y=0; y<img_height;y++){
+        for (x=0; x<img_width;x++){
+            i=3*(x+y*img_width);
+            sprintf(text + strlen(text), "%d,%d,%d, ", imgValues[i], imgValues[i+1], imgValues[i+2]);
+        }
+    }
+
     printf("%s\n",text);
 
 
@@ -606,7 +595,6 @@ void UDPrecvParseFromServer(int UDP_sockfd, struct sockaddr_in servaddr, double 
 #define FOR_DEV_SPD 850
 
 int main(int argc, char *argv[]) {
-    return getImg();
 	int i;
 	/* Check arguments */
 	if(argc<NUM_PARAMETERS+1)
@@ -681,6 +669,17 @@ int main(int argc, char *argv[]) {
     if ((LRF_DeviceHandle = kb_lrf_Init(LRF_DEVICE))<0)
     {
         printf("\nERROR: port %s could not initialise LRF!\n",LRF_DEVICE);
+    }
+
+    // Start camera
+    unsigned char* img_buffer=NULL;
+    start_camera(&img_width, &img_height);
+    // Create buffer for images
+    img_buffer=malloc(img_width*img_height*3*sizeof(char));
+    if (img_buffer==NULL){
+        fprintf(stderr,"could not alloc image buffer!\r\n");
+        free(img_buffer);
+        return -2;
     }
   
 
@@ -779,8 +778,11 @@ int main(int argc, char *argv[]) {
         else
             memset(LRF_Buffer, 0, sizeof(long)*LRF_DATA_NB);
 
+        // Get camera frame
+        getImg(img_buffer);
+
 		//TCPsendSensor(new_socket, T, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, posL, posR, spdL, spdR, usValues, irValues);
-		UDPsendSensor(UDP_sockfd, servaddr, T, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, posL, posR, spdL, spdR, usValues, irValues, LRF_Buffer);
+		UDPsendSensor(UDP_sockfd, servaddr, T, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, posL, posR, spdL, spdR, usValues, irValues, LRF_Buffer, img_buffer);
 		printf("Sleeping...\n");
 		usleep(105000); // wait 105 ms, time for gyro to read fresh data
   	}	
@@ -791,6 +793,10 @@ int main(int argc, char *argv[]) {
 
     // Close the lrf device
     kb_lrf_Close(LRF_DeviceHandle);
+
+    // Close camera and free memory
+    stop_camera();
+    free(img_buffer);
 
   	// switch to normal key input mode
   	// This is important, if we don't switch the term mode back to zero
