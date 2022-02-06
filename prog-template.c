@@ -282,32 +282,55 @@ void getLRF(int LRF_DeviceHandle, long * LRF_Buffer) {
     // Copy data from global to local buffer
     memcpy(LRF_Buffer, kb_lrf_DistanceData, sizeof(long)*LRF_DATA_NB);
 }
-
-int getImg(){
-    unsigned char* buffer=NULL;
-    unsigned int dWidth=192;
-    unsigned int dHeight=144;
-    int x,y,i,ret;
+int start_camera(unsigned int *dWidth, unsigned int *dHeight){
+    // start camera and stream
     // Initialize camera
-    if ((ret=kb_camera_init(&dWidth, &dHeight))<0){
+    int ret;
+    if ((ret=kb_camera_init(dWidth, dHeight))<0){
         fprintf(stderr,"camera init error %d\r\n",ret);
-        free(buffer);
         return -1;
     }else {
         switch(ret) {
             case 1:
-                printf("width adjusted to %d\r\n",dWidth);
+                printf("width adjusted to %d\r\n",*dWidth);
                 break;
             case 2:
-                printf("height adjusted to %d\r\n",dHeight);
+                printf("height adjusted to %d\r\n",*dHeight);
                 break;
             case 3:
-                printf("width adjusted to %d and height adjusted to %d !\r\n",dWidth,dHeight);
+                printf("width adjusted to %d and height adjusted to %d !\r\n",*dWidth,*dHeight);
                 break;
             default:
                 break;
         }
     }
+    // Start stream
+    if(kb_captureStart()<0){
+        kb_camera_release();
+        fprintf(stderr,"ERROR: capture start error in mutli frames!\r\n");
+        return -3;
+    }
+    // 100ms startup
+    usleep(100000);
+    printf("Successfully started camera and stream\n");
+}
+int stop_camera(){
+    // stops camera and stream
+    // Stop video stream
+    if (kb_captureStop()<0){
+        fprintf(stderr,"ERROR: capture stop error in mutli frames!\r\n");
+    }
+    // releasing camera
+    kb_camera_release();
+    printf("Shut down camera and stream\n");
+}
+int getImg(){
+    unsigned char* buffer=NULL;
+    unsigned int dWidth=192;//752;
+    unsigned int dHeight=144;//480;
+    int x,y,i,ret;
+    // start camera and stream
+    start_camera(&dWidth, &dHeight);
     // Create buffer in memory
     buffer=malloc(dWidth*dHeight*3*sizeof(char));
     if (buffer==NULL){
@@ -315,15 +338,6 @@ int getImg(){
         free(buffer);
         return -2;
     }
-    // Start video stream
-    if(kb_captureStart()<0){
-        free(buffer);
-        kb_camera_release();
-        fprintf(stderr,"ERROR: capture start error in mutli frames!\r\n");
-        return -3;
-    }
-    // 100ms startup
-    usleep(100000);
     // Get frame
     printf("Start of image\n");
     if ((ret=kb_frameRead(buffer))<0){
@@ -332,16 +346,12 @@ int getImg(){
         for (y=0; y<dHeight;y++){
             for (x=0; x<dWidth;x++){
                 i=3*(x+y*dWidth);
-                printf("%d, %d, %d, %d\n", i/3, buffer[i],buffer[i+1],buffer[i+2]);
+                // printf("%d, %d, %d, %d\n", i/3, buffer[i],buffer[i+1],buffer[i+2]);
             }
         }
     }
-    // Stop video stream
-    if (kb_captureStop()<0){
-        fprintf(stderr,"ERROR: capture stop error in mutli frames!\r\n");
-    }
-    // releasing camera
-    kb_camera_release();
+    // Stop camera and stream
+    stop_camera();
     // free image memory
     free(buffer);
     printf("End of image (%d x %d)\n", dWidth, dHeight);
