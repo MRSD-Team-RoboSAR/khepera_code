@@ -523,22 +523,25 @@ void UDPsendSensor(int UDP_sockfd, struct sockaddr_in servaddr, long double T, d
 	sprintf(text + strlen(text), "%d", irValues[11]);
 	sprintf(text + strlen(text), "IL\n");
 
-    // LRF
+    // LRF, in mm
     int i;
+    sprintf(text + strlen(text), "\nLRF (%d):\n", LRF_DATA_NB);
     for(i=0;i<LRF_DATA_NB;i++){
-        sprintf(text + strlen(text), "LRF%3d - %4ldmm\n", i, LRFValues[i]);
+        sprintf(text + strlen(text), "%ld,", LRFValues[i]);
     }
+    sprintf(text + strlen(text), "\n");
 
     // Camera image
     // WARNING: VERY SLOW
     int x,y;
-    sprintf(text + strlen(text), "Img (%d x %d):\n", img_width, img_height);
+    sprintf(text + strlen(text), "\nImg (%d x %d):\n", img_width, img_height);
     for (y=0; y<img_height;y++){
         for (x=0; x<img_width;x++){
             i=3*(x+y*img_width);
             sprintf(text + strlen(text), "%d,%d,%d, ", imgValues[i], imgValues[i+1], imgValues[i+2]);
         }
     }
+    sprintf(text + strlen(text), "\n");
 
     printf("%s\n",text);
 
