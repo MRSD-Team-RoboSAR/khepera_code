@@ -669,9 +669,18 @@ int main(int argc, char *argv[]) {
     kb_lrf_Power_On();
 
     // Initialize LRF
-    if ((LRF_DeviceHandle = kb_lrf_Init(LRF_DEVICE))<0)
-    {
-        printf("\nERROR: port %s could not initialise LRF!\n",LRF_DEVICE);
+    // Try ttyACM0 ~ ttyACM9; stop on first success
+    char lrf_device[] = LRF_DEVICE;
+    char lrf_id;
+    for(lrf_id = '0'; lrf_id <= '9'; lrf_id++){
+        lrf_device[strlen(lrf_device)-1] = lrf_id;
+        if ((LRF_DeviceHandle = kb_lrf_Init(lrf_device))<0)
+        {
+            printf("ERROR: Failed to get LRF on port %s\n",lrf_device);
+        } else{
+            printf("SUCCESS: Got LRF on port %s\n", lrf_device);
+            break;
+        }
     }
 
     // Start camera
