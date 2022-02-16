@@ -616,6 +616,12 @@ int main(int argc, char *argv[]) {
     gettimeofday(&cur_time,0x0);
     old_time = cur_time;
 
+    // Testing for how long it takes to read sensors
+    struct timeval test_start, test_end;
+    long long test_elapsed_us, test_total_elapsed_us, test_total_elapsed_us_max, test_total_elapsed_us_min;
+    test_total_elapsed_us_min = 1000000;
+    test_total_elapsed_us_max = 0;
+
 
     while(quitReq == 0) {
 		// Receive linear and angular velocity commands from the server
@@ -628,31 +634,74 @@ int main(int argc, char *argv[]) {
 
 		if(elapsed_time_us > main_loop_delay){
             old_time = cur_time;
-            
+            test_total_elapsed_us = 0;
             //----------------- All sensor readings ------------------//
     		// Receive accelerometer readings
-    		getAcc(acc_Buffer, &acc_X, &acc_Y, &acc_Z);
+    		gettimeofday(&test_start, 0x0);
+            getAcc(acc_Buffer, &acc_X, &acc_Y, &acc_Z);
+            gettimeofday(&test_end, 0x0);
+            test_elapsed_us = timeval_diff(NULL, &test_end, &test_start);
+            test_total_elapsed_us += test_elapsed_us;
+            printf("Test duration accel: %lld us\n", test_elapsed_us);
 
     		// Receive ultrasonic sensor readings
-    		getUS(us_Buffer, usValues);
+    		gettimeofday(&test_start, 0x0);
+            getUS(us_Buffer, usValues);
+            gettimeofday(&test_end, 0x0);
+            test_elapsed_us = timeval_diff(NULL, &test_end, &test_start);
+            test_total_elapsed_us += test_elapsed_us;
+            printf("Test duration US   : %lld us\n", test_elapsed_us);
     		
     		// Receive infrared sensor readings
-    		getIR(ir_Buffer, irValues);
+    		gettimeofday(&test_start, 0x0);
+            getIR(ir_Buffer, irValues);
+            gettimeofday(&test_end, 0x0);
+            test_elapsed_us = timeval_diff(NULL, &test_end, &test_start);
+            test_total_elapsed_us += test_elapsed_us;
+            printf("Test duration IR   : %lld us\n", test_elapsed_us);
     		
     		// Receive gyroscope readings
-    		getGyro(gyro_Buffer, &gyro_X, &gyro_Y, &gyro_Z);
+    		gettimeofday(&test_start, 0x0);
+            getGyro(gyro_Buffer, &gyro_X, &gyro_Y, &gyro_Z);
+            gettimeofday(&test_end, 0x0);
+            test_elapsed_us = timeval_diff(NULL, &test_end, &test_start);
+            test_total_elapsed_us += test_elapsed_us;
+            printf("Test duration gyro : %lld us\n", test_elapsed_us);
     		
     		// Receive encoder readings
-    		getEC(&posL, &posR);
+    		gettimeofday(&test_start, 0x0);
+            getEC(&posL, &posR);
+            gettimeofday(&test_end, 0x0);
+            test_elapsed_us = timeval_diff(NULL, &test_end, &test_start);
+            test_total_elapsed_us += test_elapsed_us;
+            printf("Test duration enc  : %lld us\n", test_elapsed_us);
     		
     		// Receive encoder speed readings
-    		getSPD(&spdL, &spdR);
+    		gettimeofday(&test_start, 0x0);
+            getSPD(&spdL, &spdR);
+            gettimeofday(&test_end, 0x0);
+            test_elapsed_us = timeval_diff(NULL, &test_end, &test_start);
+            test_total_elapsed_us += test_elapsed_us;
+            printf("Test duration spd  : %lld us\n", test_elapsed_us);
 
             // Receive LRF readings if available
+            gettimeofday(&test_start, 0x0);
             if(!(LRF_DeviceHandle < 0))
                 getLRF(LRF_DeviceHandle, LRF_Buffer);
             else
                 memset(LRF_Buffer, 0, sizeof(long)*LRF_DATA_NB);
+            gettimeofday(&test_end, 0x0);
+            test_elapsed_us = timeval_diff(NULL, &test_end, &test_start);
+            test_total_elapsed_us += test_elapsed_us;
+            printf("Test duration LRF  : %lld us\n", test_elapsed_us);
+            printf("Total (cur): %lld us\n", test_total_elapsed_us);
+            if(test_total_elapsed_us_max < test_total_elapsed_us)
+                test_total_elapsed_us_max = test_total_elapsed_us;
+            if(test_total_elapsed_us < test_total_elapsed_us_min)
+                test_total_elapsed_us_min = test_total_elapsed_us;
+            printf("Total (min): %lld us\n", test_total_elapsed_us_min);
+            printf("Total (max): %lld us\n\n", test_total_elapsed_us_max);
+
 
     		//TCPsendSensor(new_socket, T, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, posL, posR, spdL, spdR, usValues, irValues);
     		UDPsendSensor(UDP_sockfd, servaddr, 0, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, posL, posR, spdL, spdR, usValues, irValues, LRF_Buffer);
