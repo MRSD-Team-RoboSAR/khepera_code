@@ -23,12 +23,14 @@
 #define TRUE 1
 #define FALSE 0
 #define epsilon 1e-7
+#define obstacleThreshold 850
+#define obstacleThresholdOblique 750
 int feedback_port;
 int control_port;
 int feedback_frequency;
 long long int control_timeout;
 char* server_ip;
-
+int obstacle_found = 0;
 
 #define MAX_WHEEL_SPEED_MM_S 810
 #define MAXLINE 1024 
@@ -518,6 +520,9 @@ struct timeval UDPrecvParseFromServer(int UDP_sockfd, struct sockaddr_in servadd
 	}
 	else
 	{
+			if(obstacle_found == 1){
+				kh4_set_speed(0,0,dsPic);
+			}
 			if(timer_started == FALSE && is_velocity_non_zero(velo_cmd))
 			{
 				gettimeofday(&start_v,NULL);
@@ -701,7 +706,14 @@ int main(int argc, char *argv[]) {
     		
     		// Receive infrared sensor readings
     		getIR(ir_Buffer, irValues);
-    		
+
+			//checking the values of the front left, front right and the front IR sensor
+    		if((*(irValues + 2)>obstacleThresholdOblique || *(irValues + 4)>obstacleThresholdOblique) || *(irValues + 3)>obstacleThreshold){
+				obstacle_found = 1;
+			}
+			else{
+				obstacle_found = 0;
+			}
     		// Receive gyroscope readings
     		getGyro(gyro_Buffer, &gyro_X, &gyro_Y, &gyro_Z);
     		
