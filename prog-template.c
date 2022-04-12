@@ -755,7 +755,7 @@ int main(int argc, char *argv[]) {
     kh4_SetRGBLeds(
         0x00, 0x00, 0x00,
         0x00, 0x00, 0x00,
-        0xFF, 0x00, 0x00, dsPic);
+        0x00, 0x00, 0x00, dsPic);
 
   	// This is for the ctrl-C handler
   	signal( SIGINT , ctrlc_handler );
@@ -829,10 +829,10 @@ int main(int argc, char *argv[]) {
     old_time = cur_time;
 
     // Set LED: left RGB, right RGB, back RGB
-    kh4_SetRGBLeds(
-        0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00,
-        0x00, 0xFF, 0x00, dsPic);
+    // kh4_SetRGBLeds(
+    //     0x00, 0x00, 0x00,
+    //     0x00, 0x00, 0x00,
+    //     0x00, 0xFF, 0x00, dsPic);
     char led_cnt = 0;
     int bytes_recv; 
     while(quitReq == 0) {
@@ -856,12 +856,10 @@ int main(int argc, char *argv[]) {
 			timer_started = FALSE;
 			time_elapsed_full = 0;
             com_send("ERROR\n",7);
-            printf("Err\n");
 		}
         if(bytes_recv > 0){
             // Regained comms
             com_send("NORMAL\n",8);
-            printf("Restored; %d\n", bytes_recv);
         }
 		// if the velocity is non zero and last received velocity timestamp is mreo than control time out, set v = 0
 		// Update time
@@ -873,10 +871,10 @@ int main(int argc, char *argv[]) {
             led_cnt++;
             if(led_cnt > feedback_frequency){
                 led_cnt = 0;
-                kh4_SetRGBLeds(
-                    0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, dsPic);
+                // kh4_SetRGBLeds(
+                //     0x00, 0x00, 0x00,
+                //     0x00, 0x00, 0x00,
+                //     0x00, 0x00, 0x00, dsPic);
             }
             old_time = cur_time;
             
@@ -909,10 +907,10 @@ int main(int argc, char *argv[]) {
     		UDPsendSensor(UDP_sockfd, servaddr, 0, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, posL, posR, spdL, spdR, usValues, irValues, LRF_Buffer);
     		//printf("Sleeping...\n");
 
-            kh4_SetRGBLeds(
-                0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00,
-                0x00, 0xFF, 0x00, dsPic);
+            // kh4_SetRGBLeds(
+            //     0x00, 0x00, 0x00,
+            //     0x00, 0x00, 0x00,
+            //     0x00, 0xFF, 0x00, dsPic);
 		}
   	}	
 
