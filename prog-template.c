@@ -14,6 +14,156 @@
 #include "robosar.pb.h"
 #include <pb_encode.h>
 
+/****************************** START PCB DEMO ******************************/
+#include <sys/mman.h>
+
+// parameters for serial transmission
+enum {
+  Timeout = 800, // ms
+  LineLength = 16 + 64 + 1 + 1 + 1,
+};
+
+#define BAUDRATE 19200 // not used for USB devices
+
+static int HComm=-1; // handle to the port where the sensor is connected
+
+
+/*****************************************************************************/
+/* Internal functions ********************************************************/
+/*****************************************************************************/
+/* connect to serial port
+ *
+ * \param device device name
+ * \param baudrate baudrate
+ * \return 0: Ok; -1 : cannot open serial port
+ *
+*/ 
+static int com_connect(const char* device, long baudrate) {
+
+    struct termios options;
+
+    if ((HComm=open(device,O_RDWR | O_NOCTTY | O_NDELAY))<0) {
+        printf("ERROR: can't open serial port %s\n",device);
+        return -1;
+    }
+
+    fcntl(HComm, F_SETFL, 0); // blocking input
+
+    /* get the current options */
+    tcgetattr(HComm, &options);
+
+    /* set raw input, 1 second timeout */
+    options.c_cflag     |= (CLOCAL | CREAD);
+    options.c_lflag     &= ~(ICANON | ECHO | ECHOE | ISIG);
+    options.c_oflag     &= ~OPOST;
+    options.c_cc[VMIN]  = 0;
+    options.c_cc[VTIME] = Timeout/100; // timeout in 1/10 of second
+
+    /* set the options */
+    tcsetattr(HComm, TCSANOW, &options);
+
+
+
+  // Baud Rate setting
+  // !!! Not done : Baud rate setting is not required for USB connection and thus not performed.
+
+  return 0;
+}
+
+
+/*****************************************************************************/
+/*!
+ * write to serial port
+ *
+ * \param data data to be sent to the port
+ * \param size size of the data
+ * \
+*/
+static int com_send(const char* data, int size) {
+  int n;
+
+   tcflush (HComm, TCIFLUSH); // clear the read/write buffer
+   n=write( HComm , data , size );
+
+  return n;
+}
+
+
+/*****************************************************************************/
+/*!
+ * receive data from serial port
+ *
+ * \param data data to be sent to the port
+ * \param max_size max size of the data variable
+ * \param timeout timeout in [ms]
+ * \return number of data read
+*/
+static int com_recv(char* data, int max_size, int timeout) {
+
+  int filled = 0;
+  int readable_size = 0;
+    struct termios options;
+ 
+  fcntl(HComm, F_SETFL, FNDELAY); // read will return immediately if no data
+
+  memset (data, 0,max_size);
+
+   do {
+   // DWORD dwErrors;
+   // COMSTAT ComStat;
+   // ClearCommError(HComm, &dwErrors, &ComStat);
+
+    ioctl(HComm, FIONREAD, &readable_size); // get number of bytes available to be read
+
+    int read_n = (readable_size > max_size) ? max_size : readable_size;
+
+    int n;
+    
+    n=read( HComm , &data[filled] ,read_n );
+    filled += n;
+    readable_size -= n;
+
+    if (filled >= max_size) {
+      return filled;
+    }
+  } while (readable_size > 0);
+
+  // tcflush (HComm, TCIFLUSH); // clear the read buffer
+
+
+  
+
+  if (timeout > 0) {
+
+     /* get the current options */
+        tcgetattr(HComm, &options);
+        options.c_cc[VTIME] = timeout/100; // timeout in tenth of second
+
+        /* set the options */
+        tcsetattr(HComm, TCSANOW, &options);
+
+
+        fcntl(HComm, F_SETFL, 0); // blocking with timeout
+
+        int n;
+        while (1) {
+
+            n=read(HComm, &data[filled], 1);
+            if (n < 1) {
+
+                tcflush (HComm, TCIFLUSH); // clear the read buffer
+
+                return filled;
+            }
+            filled += n;
+            if (filled >= max_size) {
+                return filled;
+            }
+        
+        }
+  }
+}
+/****************************** STOP  PCB DEMO ******************************/
 
 /** Declaring parameters as global variables
  * 
@@ -678,8 +828,17 @@ int main(int argc, char *argv[]) {
         0x00, 0x00, 0x00,
         0x00, 0xFF, 0x00, dsPic);
     char led_cnt = 0;
-
+    /****************************** START PCB DEMO ******************************/
+    com_connect("/dev/ttyACM0", 9600);
+    /****************************** STOP  PCB DEMO ******************************/
     while(quitReq == 0) {
+        /****************************** START PCB DEMO ******************************/
+        com_send("ERROR\n",7);
+        usleep(3000000);
+        com_send("NORMAL\n",8);
+        usleep(3000000);
+        /****************************** STOP  PCB DEMO ******************************/
+
 		// Receive linear and angular velocity commands from the server
 		struct timeval time_elapsed_v = UDPrecvParseFromServer(UDP_sockfd, servaddr);
 		struct timeval control_timeout_s;
