@@ -624,7 +624,7 @@ bool is_velocity_non_zero(struct velo_cmd_s cur_cmd)
 
 /*---------------- Receiving and parsing from sever -----------------*/
 
-struct timeval UDPrecvParseFromServer(int UDP_sockfd, struct sockaddr_in servaddr) {
+struct timeval UDPrecvParseFromServer(int UDP_sockfd, struct sockaddr_in servaddr, int* bytes_recv) {
 	char sock_buffer[1024];
 	char *pch;
 	double recv[2];
@@ -636,6 +636,7 @@ struct timeval UDPrecvParseFromServer(int UDP_sockfd, struct sockaddr_in servadd
 
 	// Receive data string from server 
 	n = recvfrom(UDP_sockfd, (char *)sock_buffer, MAXLINE, MSG_DONTWAIT, (struct sockaddr *) &servaddr, &len); 
+    *bytes_recv = n;
 
 	// Parsing the string
 	// The angular velocity (W) and linear velocity (V) are sent in the same string, separated by an 'x'
@@ -788,6 +789,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /****************************** START PCB DEMO ******************************/
+    com_connect("/dev/ttyACM0", 9600);
+    com_send("NORMAL\n",8);
+    /****************************** STOP  PCB DEMO ******************************/
+
   	// Establish socket communication
   	int new_socket;
   	int UDP_sockfd;
@@ -828,19 +834,12 @@ int main(int argc, char *argv[]) {
         0x00, 0x00, 0x00,
         0x00, 0xFF, 0x00, dsPic);
     char led_cnt = 0;
-    /****************************** START PCB DEMO ******************************/
-    com_connect("/dev/ttyACM0", 9600);
-    /****************************** STOP  PCB DEMO ******************************/
+    int bytes_recv; 
     while(quitReq == 0) {
-        /****************************** START PCB DEMO ******************************/
-        com_send("ERROR\n",7);
-        usleep(3000000);
-        com_send("NORMAL\n",8);
-        usleep(3000000);
-        /****************************** STOP  PCB DEMO ******************************/
 
 		// Receive linear and angular velocity commands from the server
-		struct timeval time_elapsed_v = UDPrecvParseFromServer(UDP_sockfd, servaddr);
+		bytes_recv = 0;
+        struct timeval time_elapsed_v = UDPrecvParseFromServer(UDP_sockfd, servaddr, &bytes_recv);
 		struct timeval control_timeout_s;
 		control_timeout_s.tv_usec = control_timeout;
 		long long int control_full;
@@ -856,7 +855,14 @@ int main(int argc, char *argv[]) {
 			velo_cmd.W = 0.00;
 			timer_started = FALSE;
 			time_elapsed_full = 0;
+            com_send("ERROR\n",7);
+            printf("Err\n");
 		}
+        if(bytes_recv > 0){
+            // Regained comms
+            com_send("NORMAL\n",8);
+            printf("Restored; %d\n", bytes_recv);
+        }
 		// if the velocity is non zero and last received velocity timestamp is mreo than control time out, set v = 0
 		// Update time
 		gettimeofday(&cur_time,0x0);
