@@ -34,10 +34,15 @@ char* server_ip;
 #define MAXLINE 1024 
 #define KH4_GYRO_DEG_S   (66.0/1000.0)
 #define LRF_DEVICE "/dev/ttyACM0" 
-// Thresholds for avoiding collisions
+// Thresholds for avoiding collisions using IR
 #define obstacleThreshold 700
 #define obstacleThresholdOblique 600
 #define obstacleNumThreshold 1
+// Index range for using LRF for collision avoidance; 90 deg infront of agent
+#define LRF_START_IDX 215
+#define LRF_END_IDX 465
+#define LRF_DIST_THRESHOLD 150 // in mm
+#define LRF_CNT_THRESHOLD 15
 
 static knet_dev_t * dsPic;
 static int quitReq = 0; // quit variable for loop
@@ -572,7 +577,7 @@ void display_battery_status(knet_dev_t *hDev){
     }
 }
 
-int collision_detection(char *ir_Buffer, int *irValues, int *obstacle_found){
+int collision_detection_IR(char *ir_Buffer, int *irValues, int *obstacle_found){
     // Get values of proximity sensors
     getIR(ir_Buffer, irValues);
     //checking the values of the front left, front right and the front IR sensor
@@ -583,6 +588,22 @@ int collision_detection(char *ir_Buffer, int *irValues, int *obstacle_found){
         *obstacle_found = 0;
     }
     return *obstacle_found;
+}
+
+int collision_detection_LRF(long *LRF_data){
+    int idx;
+    int cnt = 0;
+    for(idx = LRF_START_IDX; idx <= LRF_END_IDX; idx++){
+        if((LRF_data[idx-2] < LRF_DIST_THRESHOLD) && (LRF_data[idx-1] < LRF_DIST_THRESHOLD) && (LRF_data[idx] < LRF_DIST_THRESHOLD) && (LRF_data[idx+1] < LRF_DIST_THRESHOLD) && (LRF_data[idx+2] < LRF_DIST_THRESHOLD)){
+            cnt++;
+        }
+    }
+    // printf("count: %d\n",cnt);
+    if(cnt > LRF_CNT_THRESHOLD){
+        return 1;
+    }else{
+        return 0;
+    }
 }
 
 
@@ -708,6 +729,8 @@ int main(int argc, char *argv[]) {
     int obstacles_detected = 0; // number of times obstacles detected near Khepera
     char gyro_Buffer[100]; // Buffer for Gyroscope
     long LRF_Buffer[LRF_DATA_NB]; // Buffer for LIDAR readings
+    memset(LRF_Buffer, LRF_DIST_THRESHOLD, sizeof(long)*LRF_DATA_NB);
+
 
     double acc_X, acc_Y, acc_Z;
     double gyro_X, gyro_Y, gyro_Z;
@@ -750,17 +773,26 @@ int main(int argc, char *argv[]) {
                 0xFF, 0x00, 0x00,
                 0xFF, 0x00, 0x00, dsPic);
 		}
-        // Check and recheck for override due to imminent collision
-        while(collision_detection(ir_Buffer, irValues, &obstacles_detected)){
-            if(obstacles_detected > obstacleNumThreshold){
-                velo_cmd.V = (velo_cmd.V > 0) ? 0.00 : velo_cmd.V;
-                velo_cmd.W = 0.00;
-                kh4_SetRGBLeds(
-                    0xFF, 0x00, 0xFF,
-                    0xFF, 0x00, 0xFF,
-                    0xFF, 0x00, 0xFF, dsPic);
-                break;
-            }
+        // Check and recheck for override due to imminent collision using IR
+        // while(collision_detection_IR(ir_Buffer, irValues, &obstacles_detected)){
+        //     if(obstacles_detected > obstacleNumThreshold){
+        //         velo_cmd.V = (velo_cmd.V > 0) ? 0.00 : velo_cmd.V;
+        //         velo_cmd.W = 0.00;
+        //         kh4_SetRGBLeds(
+        //             0xFF, 0x00, 0xFF,
+        //             0xFF, 0x00, 0xFF,
+        //             0xFF, 0x00, 0xFF, dsPic);
+        //         break;
+        //     }
+        // }
+        // Check for override due to imminent collision using LRF
+        if(collision_detection_LRF(LRF_Buffer)){
+            velo_cmd.V = (velo_cmd.V > 0) ? 0.00 : velo_cmd.V;
+            velo_cmd.W = 0.00;
+            kh4_SetRGBLeds(
+                0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, dsPic);
         }
         Ang_Vel_Control(velo_cmd.W, velo_cmd.V);
 		// if the velocity is non zero and last received velocity timestamp is mreo than control time out, set v = 0
@@ -804,7 +836,7 @@ int main(int argc, char *argv[]) {
             if(!(LRF_DeviceHandle < 0))
                 getLRF(LRF_DeviceHandle, LRF_Buffer);
             else
-                memset(LRF_Buffer, 0, sizeof(long)*LRF_DATA_NB);
+                memset(LRF_Buffer, LRF_DIST_THRESHOLD, sizeof(long)*LRF_DATA_NB);
 
     		//TCPsendSensor(new_socket, T, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, posL, posR, spdL, spdR, usValues, irValues);
     		UDPsendSensor(UDP_sockfd, servaddr, 0, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, posL, posR, spdL, spdR, usValues, irValues, LRF_Buffer);
