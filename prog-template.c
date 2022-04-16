@@ -593,12 +593,23 @@ int collision_detection_IR(char *ir_Buffer, int *irValues, int *obstacle_found){
 int collision_detection_LRF(long *LRF_data){
     int idx;
     int cnt = 0;
+    int chain = 0;
+    int chain_cnt = 0;
+    int cnt_max = 0;
     for(idx = LRF_START_IDX; idx <= LRF_END_IDX; idx++){
         if((LRF_data[idx-2] < LRF_DIST_THRESHOLD) && (LRF_data[idx-1] < LRF_DIST_THRESHOLD) && (LRF_data[idx] < LRF_DIST_THRESHOLD) && (LRF_data[idx+1] < LRF_DIST_THRESHOLD) && (LRF_data[idx+2] < LRF_DIST_THRESHOLD)){
+            if(chain)
+                chain_cnt++;
             cnt++;
+            chain = 1;
+        }else{
+            chain = 0;
+            if(chain_cnt > cnt_max)
+                cnt_max = chain_cnt;
+            chain_cnt = 0;
         }
     }
-    // printf("count: %d\n",cnt);
+    printf("count, max: %3d, %3d\n",cnt, cnt_max);
     if(cnt > LRF_CNT_THRESHOLD){
         return 1;
     }else{
