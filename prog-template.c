@@ -23,12 +23,17 @@
 #define TRUE 1
 #define FALSE 0
 #define epsilon 1e-7
+
+#define STATUS_LENGTH 200
+
 int feedback_port;
 int control_port;
 int feedback_frequency;
 long long int control_timeout;
 char* server_ip;
-char status_str[200];
+
+char status_str[STATUS_LENGTH];
+int status_val;
 
 
 #define MAX_WHEEL_SPEED_MM_S 810
@@ -440,6 +445,12 @@ void UDPsendSensor(int UDP_sockfd, struct sockaddr_in servaddr, long double T, d
 	proto_lrf_data.values_count = LRF_DATA_NB;
 	proto_data_all.lrf_data = proto_lrf_data;
 
+    // Status message
+    robosar_fms_StatusMessage proto_status_msg_data;
+    strcpy(proto_status_msg_data.message, status_str);
+    proto_status_msg_data.status_val = status_val;
+    proto_data_all.status_msg_data = proto_status_msg_data;
+
 	pb_ostream_t stream = pb_ostream_from_buffer(proto_buffer, sizeof(proto_buffer));
 	bool status = pb_encode(&stream, robosar_fms_SensorData_fields, &proto_data_all);
 	size_t proto_msg_length = stream.bytes_written;
@@ -509,6 +520,7 @@ struct timeval UDPrecvParseFromServer(int UDP_sockfd, struct sockaddr_in servadd
 		velo_cmd.W = recv[0];
 		velo_cmd.V = recv[1];
         override_flag = 0.0;
+        status_val = 0;
         sprintf(status_str, "No override;\n");
 			
 
@@ -708,6 +720,7 @@ int main(int argc, char *argv[]) {
     char ir_Buffer[256]; // Buffer for infrared sensors
     int irValues[12]; // Values of the 12 IR sensor readings from sensor No.1 - 12
     int obstacles_detected = 0; // number of times obstacles detected near Khepera
+    int obstacles_detected_flag = 0;
     char gyro_Buffer[100]; // Buffer for Gyroscope
     long LRF_Buffer[LRF_DATA_NB]; // Buffer for LIDAR readings
 
@@ -729,6 +742,9 @@ int main(int argc, char *argv[]) {
     // For blinking LED
     char led_cnt = 0;
 
+    status_val = 0;
+    sprintf(status_str, "Starting;\n");
+
     while(quitReq == 0) {
 		// Receive linear and angular velocity commands from the server
 		struct timeval time_elapsed_v = UDPrecvParseFromServer(UDP_sockfd, servaddr);
@@ -739,26 +755,15 @@ int main(int argc, char *argv[]) {
 
 		control_full = 1000000LL*control_timeout_s.tv_sec + control_timeout_s.tv_usec;
 		time_elapsed_full = 1000000LL*time_elapsed_v.tv_sec + time_elapsed_v.tv_usec;
-		// Check for override due to timeout
-		if(timer_started==TRUE && time_elapsed_full >= control_full)
-		{
-			velo_cmd.V = 0.00;
-			velo_cmd.W = 0.00;
-            override_flag = 1.0;
-			timer_started = FALSE;
-			time_elapsed_full = 0;
-            kh4_SetRGBLeds(
-                0xFF, 0x00, 0x00,
-                0xFF, 0x00, 0x00,
-                0xFF, 0x00, 0x00, dsPic);
-            sprintf(status_str, "Override,timeout;\n");
-		}
         // Check and recheck for override due to imminent collision
+        obstacles_detected_flag = 0;
         while(collision_detection(ir_Buffer, irValues, &obstacles_detected)){
             if(obstacles_detected > obstacleNumThreshold){
                 velo_cmd.V = (velo_cmd.V > 0) ? 0.00 : velo_cmd.V;
                 velo_cmd.W = 0.00;
                 override_flag = 1.0;
+                status_val = 2;
+                obstacles_detected_flag = 1;
                 kh4_SetRGBLeds(
                     0xFF, 0x00, 0xFF,
                     0xFF, 0x00, 0xFF,
@@ -767,6 +772,27 @@ int main(int argc, char *argv[]) {
                 break;
             }
         }
+        if(obstacles_detected_flag == 0){
+            // Obstacle has cleared
+            status_val = 0;
+            sprintf(status_str, "No override;\n");
+        }
+        // Check for override due to timeout
+        if(timer_started==TRUE && time_elapsed_full >= control_full)
+        {
+            velo_cmd.V = 0.00;
+            velo_cmd.W = 0.00;
+            override_flag = 1.0;
+            status_val = 1;
+            timer_started = FALSE;
+            time_elapsed_full = 0;
+            kh4_SetRGBLeds(
+                0xFF, 0x00, 0x00,
+                0xFF, 0x00, 0x00,
+                0xFF, 0x00, 0x00, dsPic);
+            sprintf(status_str, "Override,timeout;\n");
+        }
+        // Update with new velocity commands
         Ang_Vel_Control(velo_cmd.W, velo_cmd.V);
 		// if the velocity is non zero and last received velocity timestamp is mreo than control time out, set v = 0
 		// Update time
