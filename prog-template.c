@@ -23,6 +23,7 @@
 #define TRUE 1
 #define FALSE 0
 #define epsilon 1e-7
+#define BACKUP_SPEED (-100) // mm/sec
 
 #define STATUS_LENGTH 200
 
@@ -721,6 +722,7 @@ int main(int argc, char *argv[]) {
     int irValues[12]; // Values of the 12 IR sensor readings from sensor No.1 - 12
     int obstacles_detected = 0; // number of times obstacles detected near Khepera
     int obstacles_detected_flag = 0;
+    int obstacles_detected_flag_old = 0;
     char gyro_Buffer[100]; // Buffer for Gyroscope
     long LRF_Buffer[LRF_DATA_NB]; // Buffer for LIDAR readings
 
@@ -759,7 +761,7 @@ int main(int argc, char *argv[]) {
         obstacles_detected_flag = 0;
         while(collision_detection(ir_Buffer, irValues, &obstacles_detected)){
             if(obstacles_detected > obstacleNumThreshold){
-                velo_cmd.V = (velo_cmd.V > 0) ? 0.00 : velo_cmd.V;
+                velo_cmd.V = BACKUP_SPEED;
                 velo_cmd.W = 0.00;
                 override_flag = 1.0;
                 status_val = 2;
@@ -772,11 +774,14 @@ int main(int argc, char *argv[]) {
                 break;
             }
         }
-        if(obstacles_detected_flag == 0){
-            // Obstacle has cleared
+        if(obstacles_detected_flag_old == 1 && obstacles_detected_flag == 0){
+            // Obstacle has just cleared
+            velo_cmd.V = 0.0;
+            velo_cmd.W = 0.00;
             status_val = 0;
             sprintf(status_str, "No override;\n");
         }
+        obstacles_detected_flag_old = obstacles_detected_flag;
         // Check for override due to timeout
         if(timer_started==TRUE && time_elapsed_full >= control_full)
         {
