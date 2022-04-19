@@ -23,7 +23,8 @@
 #define TRUE 1
 #define FALSE 0
 #define epsilon 1e-7
-#define BACKUP_SPEED (-100) // mm/sec
+#define BACKUP_LIN_SPEED (-100) // mm/sec
+#define BACKUP_ANG_SPEED (-0.5)
 
 #define STATUS_LENGTH 200
 
@@ -522,7 +523,7 @@ struct timeval UDPrecvParseFromServer(int UDP_sockfd, struct sockaddr_in servadd
 		velo_cmd.V = recv[1];
         override_flag = 0.0;
         status_val = 0;
-        sprintf(status_str, "No override;\n");
+        sprintf(status_str, "No override;%f\n",velo_cmd.W);
 			
 
 		// Clear buffer
@@ -761,8 +762,8 @@ int main(int argc, char *argv[]) {
         obstacles_detected_flag = 0;
         while(collision_detection(ir_Buffer, irValues, &obstacles_detected)){
             if(obstacles_detected > obstacleNumThreshold){
-                velo_cmd.V = BACKUP_SPEED;
-                velo_cmd.W = 0.00;
+                velo_cmd.V = BACKUP_LIN_SPEED;
+                velo_cmd.W = BACKUP_ANG_SPEED;
                 override_flag = 1.0;
                 status_val = 2;
                 obstacles_detected_flag = 1;
