@@ -43,8 +43,8 @@ int status_val;
 #define KH4_GYRO_DEG_S   (66.0/1000.0)
 #define LRF_DEVICE "/dev/ttyACM0" 
 // Thresholds for avoiding collisions
-#define obstacleThreshold 500
-#define obstacleThresholdOblique 500
+#define obstacleThreshold 600
+#define obstacleThresholdOblique 600
 #define obstacleNumThreshold 1
 
 static knet_dev_t * dsPic;
