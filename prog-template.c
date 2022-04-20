@@ -23,7 +23,7 @@
 #define TRUE 1
 #define FALSE 0
 #define epsilon 1e-7
-#define BACKUP_LIN_SPEED (-100) // mm/sec
+#define BACKUP_LIN_SPEED (-10) // mm/sec
 #define BACKUP_ANG_SPEED (-0.5)
 
 #define STATUS_LENGTH 200
