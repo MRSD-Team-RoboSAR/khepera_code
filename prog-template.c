@@ -523,7 +523,7 @@ struct timeval UDPrecvParseFromServer(int UDP_sockfd, struct sockaddr_in servadd
 		velo_cmd.V = recv[1];
         override_flag = 0.0;
         status_val = 0;
-        sprintf(status_str, "No override;%f\n",velo_cmd.W);
+        sprintf(status_str, "No override;\n");
 			
 
 		// Clear buffer
