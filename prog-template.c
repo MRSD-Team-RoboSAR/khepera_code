@@ -24,7 +24,7 @@
 #define FALSE 0
 #define epsilon 1e-7
 #define BACKUP_LIN_SPEED (-10) // mm/sec
-#define BACKUP_ANG_SPEED (-0.5)
+#define BACKUP_ANG_SPEED (0.5)
 
 #define STATUS_LENGTH 200
 
@@ -763,7 +763,11 @@ int main(int argc, char *argv[]) {
         while(collision_detection(ir_Buffer, irValues, &obstacles_detected)){
             if(obstacles_detected > obstacleNumThreshold){
                 velo_cmd.V = BACKUP_LIN_SPEED;
-                velo_cmd.W = BACKUP_ANG_SPEED;
+                // Turn direction depends on which IR sensor has greater reading
+                if(*(irValues + 2)>*(irValues + 4))
+                    velo_cmd.W = -BACKUP_ANG_SPEED;
+                else
+                    velo_cmd.W = BACKUP_ANG_SPEED;
                 override_flag = 1.0;
                 status_val = 2;
                 obstacles_detected_flag = 1;
