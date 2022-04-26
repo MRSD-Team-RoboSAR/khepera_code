@@ -687,6 +687,9 @@ int main(int argc, char *argv[]) {
   	// Reset Encoders
   	kh4_ResetEncoders(dsPic);
 
+    // Disable US
+    kh4_activate_us(0, dsPic);
+
     // Get handle for Laser Rangefinder (LRF)
     int LRF_DeviceHandle;
     // Power LRF
