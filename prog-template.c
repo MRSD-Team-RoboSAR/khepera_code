@@ -299,7 +299,7 @@ void getLRF(int LRF_DeviceHandle, long * LRF_Buffer) {
 }
 
 /** --------------------Get camera detections---------------------*/
-robosar_fms_AllDetections getCamDetections(int fd1, knet_dev_t *hDev, int *apriltag_detected) {
+robosar_fms_AllDetections getCamDetections(int fd1, int *apriltag_detected) {
 	*apriltag_detected = 0;
 	uint8_t pipe_buffer[250];	// Buffer for pipe communication
 	robosar_fms_AllDetections proto_detections_;
@@ -331,7 +331,6 @@ robosar_fms_AllDetections getCamDetections(int fd1, knet_dev_t *hDev, int *april
 	}
 
 	//printf("detections: %d\n", proto_detections_.tag_detections_count);
-
 
 	return proto_detections_;
 }
@@ -902,7 +901,7 @@ int main(int argc, char *argv[]) {
         	get_battery_level(&battery_level);
 
 			// Check if any detections from camera
-			robosar_fms_AllDetections proto_detections = getCamDetections(fd1, dsPic, &apriltag_detected);
+			robosar_fms_AllDetections proto_detections = getCamDetections(fd1, &apriltag_detected);
 
     		//TCPsendSensor(new_socket, T, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, posL, posR, spdL, spdR, usValues, irValues);
     		UDPsendSensor(UDP_sockfd, servaddr, 0, acc_X, acc_Y, acc_Z, gyro_X, gyro_Y, gyro_Z, 
@@ -913,7 +912,7 @@ int main(int argc, char *argv[]) {
 			// Display SKy Blue lights if apriltag detected
 			if(apriltag_detected==1) {
 				override_flag = 1.0;
-				if(override_led==0){
+				if(override_led==0) {
 					override_led = 1;
 					kh4_SetRGBLeds(
 					0x0, 0xBF, 0xFF,
