@@ -816,8 +816,6 @@ int main(int argc, char *argv[]) {
     char led_cnt = 0;
 
 	//printf("Will try to read %d \n", sizeof(robosar_fms_AllDetections));
-    FILE *fp;
-    char log_text[10000];
     while(quitReq == 0) {
 		// Receive linear and angular velocity commands from the server
 		struct timeval time_elapsed_v = UDPrecvParseFromServer(UDP_sockfd, servaddr);
@@ -987,20 +985,6 @@ int main(int argc, char *argv[]) {
             // Display battery status
 			if(override_led == 0)
             	display_battery_status(dsPic);
-      // Logging
-      // Load up string
-      log_text[0] = 0;
-      sprintf(log_text, "    ");
-      int log_idx;
-      for(log_idx = 0; log_idx < LRF_DATA_NB; log_idx++)
-      {
-        sprintf(log_text + strlen(log_text), "%ld,", kb_lrf_DistanceData[log_idx]);
-      }
-      sprintf(log_text + strlen(log_text), "\r\n");
-      // Write to file
-      fp = fopen("/tmp/lrf_log.txt", "w");
-      fprintf(fp, "%s", log_text);
-      fclose(fp);
 
 		}
   	}	
