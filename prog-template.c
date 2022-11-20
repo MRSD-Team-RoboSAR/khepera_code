@@ -900,16 +900,7 @@ int main(int argc, char *argv[]) {
 			else {
 				// Display battery status
 				display_battery_status(dsPic);
-			}
-
-			// else if(apriltag_detected==0 && apriltag_set_led==1) {
-			// 	override_led = 0;
-			// 	apriltag_set_led = 0;
-			// }
-
-            // 
-			// if(override_led == 0)
-            	
+			}            	
 
 		}
   	}	
