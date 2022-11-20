@@ -774,10 +774,6 @@ int main(int argc, char *argv[]) {
     char gyro_Buffer[100]; // Buffer for Gyroscope
     long LRF_Buffer[LRF_DATA_NB]; // Buffer for LIDAR readings
 	int apriltag_detected = 0; // If apriltag is detected or not
-	int override_led = 0;
-	int apriltag_set_led = 0;
-	int controltimeout_set_led = 0;
-	int collision_set_led = 0;
 
     double acc_X, acc_Y, acc_Z;
     double gyro_X, gyro_Y, gyro_Z;
@@ -817,41 +813,26 @@ int main(int argc, char *argv[]) {
             override_flag = 1.0;
 			timer_started = FALSE;
 			time_elapsed_full = 0;
-			if(override_led==0) {
-				kh4_SetRGBLeds(
-					0xFF, 0x00, 0x00,
-					0xFF, 0x00, 0x00,
-					0xFF, 0x00, 0x00, dsPic);
-				override_led = 1;
-				controltimeout_set_led = 1;
-			}
+			kh4_SetRGBLeds(
+				0xFF, 0x00, 0x00,
+				0xFF, 0x00, 0x00,
+				0xFF, 0x00, 0x00, dsPic);
             sprintf(status_str, "Override,timeout;\n");
-		}
-		if(controltimeout_set_led == 1) {
-			controltimeout_set_led = 0;
-			override_led = 0;
 		}
         // Check and recheck for override due to imminent collision
         while(collision_detection(ir_Buffer, irValues, &obstacles_detected)){
             if(obstacles_detected > obstacleNumThreshold){
                 velo_cmd.V = (velo_cmd.V > 0) ? 0.00 : velo_cmd.V;
                 override_flag = 1.0;
-				if(override_led==0) {
-					kh4_SetRGBLeds(
-						0xFF, 0x00, 0xFF,
-						0xFF, 0x00, 0xFF,
-						0xFF, 0x00, 0xFF, dsPic);
-					override_led = 1;
-					collision_set_led = 1;
-				}
+				kh4_SetRGBLeds(
+					0xFF, 0x00, 0xFF,
+					0xFF, 0x00, 0xFF,
+					0xFF, 0x00, 0xFF, dsPic);
+				
                 sprintf(status_str, "Override,infrared;\n");
                 break;
             }
         }
-		if(collision_set_led ==1 ) {
-			collision_set_led = 0; 
-			override_led = 0;
-		}
         Ang_Vel_Control(velo_cmd.W, velo_cmd.V);
 		// if the velocity is non zero and last received velocity timestamp is mreo than control time out, set v = 0
 		// Update time
@@ -863,13 +844,12 @@ int main(int argc, char *argv[]) {
             led_cnt++;
             if(led_cnt > feedback_frequency){
                 led_cnt = 0;
-				if(override_led == 0) {
                 // Turn LED off to cause blinking
-					kh4_SetRGBLeds(
-						0x00, 0x00, 0x00,
-						0x00, 0x00, 0x00,
-						0x00, 0x00, 0x00, dsPic);
-				}
+				kh4_SetRGBLeds(
+					0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, dsPic);
+				
             }
             old_time = cur_time;
             
@@ -911,24 +891,25 @@ int main(int argc, char *argv[]) {
 
 			// Display SKy Blue lights if apriltag detected
 			if(apriltag_detected==1) {
-				override_flag = 1.0;
-				if(override_led==0) {
-					override_led = 1;
-					kh4_SetRGBLeds(
-					0x0, 0xBF, 0xFF,
-					0x0, 0xBF, 0xFF,
-					0x0, 0xBF, 0xFF, dsPic);
-					apriltag_set_led = 1;
-				}
+				// override_flag = 1.0;
+				kh4_SetRGBLeds(
+				0x0, 0xBF, 0xFF,
+				0x0, 0xBF, 0xFF,
+				0x0, 0xBF, 0xFF, dsPic);
 			}
-			else if(apriltag_detected==0 && apriltag_set_led==1) {
-				override_led = 0;
-				apriltag_set_led = 0;
+			else {
+				// Display battery status
+				display_battery_status(dsPic);
 			}
 
-            // Display battery status
-			if(override_led == 0)
-            	display_battery_status(dsPic);
+			// else if(apriltag_detected==0 && apriltag_set_led==1) {
+			// 	override_led = 0;
+			// 	apriltag_set_led = 0;
+			// }
+
+            // 
+			// if(override_led == 0)
+            	
 
 		}
   	}	
